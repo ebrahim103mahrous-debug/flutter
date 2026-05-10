@@ -61,13 +61,38 @@ export default function App() {
     return () => clearInterval(interval);
   }, [screen, timeLeft]);
 
+  const prepareQuestions = (rawQuestions: Question[]) => {
+    return rawQuestions.map(q => {
+      // Find the original correct option text to keep track of it
+      const originalCorrectOption = q.options.find(o => o.key === q.correctAnswer);
+      
+      // Shuffle options text so they change position
+      const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
+      
+      // Map to new keys A, B, C, D in strict order
+      const keys: ('A' | 'B' | 'C' | 'D')[] = ['A', 'B', 'C', 'D'];
+      const rekeyedOptions = shuffledOptions.map((opt, index) => ({
+        ...opt,
+        key: keys[index] // Reset the key to A, B, C, or D
+      }));
+      
+      // Find which of the new keys (A, B, C, D) points to the text that was originally correct
+      const newCorrectKey = rekeyedOptions.find(o => 
+        o.text === originalCorrectOption?.text && o.textAr === originalCorrectOption?.textAr
+      )?.key || q.correctAnswer;
+      
+      return {
+        ...q,
+        options: rekeyedOptions,
+        correctAnswer: newCorrectKey
+      };
+    });
+  };
+
   const startSequentialSet = (setNum: number) => {
     const start = (setNum - 1) * 10;
     const end = start + 10;
-    const setQuestions = QUESTIONS.slice(start, end).map(q => ({
-      ...q,
-      options: [...q.options].sort(() => Math.random() - 0.5)
-    }));
+    const setQuestions = prepareQuestions(QUESTIONS.slice(start, end));
     
     setQuizQuestions(setQuestions);
     setTotalQuizzes(prev => prev + 1);
@@ -77,13 +102,9 @@ export default function App() {
   const startRandomQuiz = (count: number = 10, timeMins: number = 10) => {
     const shuffled = [...QUESTIONS]
       .sort(() => Math.random() - 0.5)
-      .slice(0, Math.min(count, QUESTIONS.length))
-      .map(q => ({
-        ...q,
-        options: [...q.options].sort(() => Math.random() - 0.5)
-      }));
+      .slice(0, Math.min(count, QUESTIONS.length));
     
-    setQuizQuestions(shuffled);
+    setQuizQuestions(prepareQuestions(shuffled));
     setTotalQuizzes(prev => prev + 1);
     initQuiz(timeMins * 60);
   };
@@ -317,27 +338,49 @@ export default function App() {
                   <div>
                     <div className="flex justify-between items-center mb-4">
                       <label className="font-bold text-slate-700">{isAr ? "عدد الأسئلة" : "Number of Questions"}</label>
-                      <span className="bg-slate-100 px-3 py-1 rounded-lg font-black text-blue-600">{customCount}</span>
+                      <input 
+                        type="number" 
+                        min="1" 
+                        max={QUESTIONS.length}
+                        value={customCount}
+                        onChange={(e) => setCustomCount(Math.min(QUESTIONS.length, Math.max(1, parseInt(e.target.value) || 1)))}
+                        className="w-20 bg-slate-100 px-3 py-2 rounded-xl font-black text-blue-600 text-center focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
                     </div>
                     <input 
-                      type="range" min="5" max="50" step="5"
+                      type="range" min="5" max={QUESTIONS.length} step="5"
                       value={customCount}
                       onChange={(e) => setCustomCount(parseInt(e.target.value))}
-                      className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                      className="w-full h-3 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
                     />
+                    <div className="flex justify-between mt-2 text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
+                      <span>5</span>
+                      <span>MAX: {QUESTIONS.length}</span>
+                    </div>
                   </div>
 
                   <div>
                     <div className="flex justify-between items-center mb-4">
                       <label className="font-bold text-slate-700">{isAr ? "المدة (بالدقائق)" : "Time Limit (Minutes)"}</label>
-                      <span className="bg-slate-100 px-3 py-1 rounded-lg font-black text-indigo-600">{customMins}</span>
+                      <input 
+                        type="number" 
+                        min="1" 
+                        max="120"
+                        value={customMins}
+                        onChange={(e) => setCustomMins(Math.min(120, Math.max(1, parseInt(e.target.value) || 1)))}
+                        className="w-20 bg-slate-100 px-3 py-2 rounded-xl font-black text-indigo-600 text-center focus:ring-2 focus:ring-indigo-500 outline-none"
+                      />
                     </div>
                     <input 
                       type="range" min="2" max="60" step="1"
                       value={customMins}
                       onChange={(e) => setCustomMins(parseInt(e.target.value))}
-                      className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      className="w-full h-3 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                     />
+                    <div className="flex justify-between mt-2 text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
+                      <span>2m</span>
+                      <span>60m</span>
+                    </div>
                   </div>
                 </div>
 
